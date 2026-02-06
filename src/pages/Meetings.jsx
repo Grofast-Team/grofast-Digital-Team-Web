@@ -7,7 +7,8 @@ import {
   HiOutlineCalendar,
   HiOutlineClock,
   HiOutlineUsers,
-  HiOutlineExternalLink
+  HiOutlineExternalLink,
+  HiOutlineX
 } from 'react-icons/hi'
 
 const Meetings = () => {
@@ -26,24 +27,36 @@ const Meetings = () => {
   })
 
   useEffect(() => {
-    fetchMeetings()
-    fetchEmployees()
+    if (employee) {
+      fetchMeetings()
+      fetchEmployees()
+    }
   }, [employee])
 
   const fetchMeetings = async () => {
     try {
-      const { data, error } = await supabase
-        .from('meetings')
-        .select(`
-          *,
-          creator:employees!meetings_created_by_fkey(id, name)
-        `)
-        .gte('datetime', new Date().toISOString())
-        .order('datetime', { ascending: true })
+      // Fetch meetings and employees separately to avoid FK issues
+      const [{ data: meetingsData, error: meetingsError }, { data: empData }] = await Promise.all([
+        supabase
+          .from('meetings')
+          .select('*')
+          .gte('datetime', new Date().toISOString())
+          .order('datetime', { ascending: true }),
+        supabase.from('employees').select('id, name')
+      ])
 
-      if (error) throw error
-      setMeetings(data || [])
+      if (meetingsError) throw meetingsError
 
+      // Map creator names
+      const empMap = {}
+      empData?.forEach(emp => { empMap[emp.id] = emp })
+
+      const meetingsWithCreator = (meetingsData || []).map(m => ({
+        ...m,
+        creator: empMap[m.created_by] || null
+      }))
+
+      setMeetings(meetingsWithCreator)
     } catch (error) {
       console.error('Error fetching meetings:', error)
     } finally {
@@ -56,7 +69,6 @@ const Meetings = () => {
       const { data } = await supabase
         .from('employees')
         .select('id, name, department')
-        .eq('status', 'active')
 
       setEmployees(data || [])
     } catch (error) {
@@ -71,7 +83,6 @@ const Meetings = () => {
     setSubmitting(true)
 
     try {
-      // Generate Google Meet link (placeholder - in production, use Google Calendar API)
       const meetLink = formData.meet_link || `https://meet.google.com/${generateMeetCode()}`
 
       const { error } = await supabase
@@ -89,7 +100,6 @@ const Meetings = () => {
       setFormData({ title: '', datetime: '', meet_link: '', attendees: [] })
       setShowForm(false)
       await fetchMeetings()
-
     } catch (error) {
       console.error('Error creating meeting:', error)
       alert('Failed to create meeting. Please try again.')
@@ -122,7 +132,7 @@ const Meetings = () => {
     const meetingTime = new Date(datetime)
     const now = new Date()
     const diff = meetingTime - now
-    return diff > 0 && diff < 30 * 60 * 1000 // Within 30 minutes
+    return diff > 0 && diff < 30 * 60 * 1000
   }
 
   const toggleAttendee = (id) => {
@@ -145,27 +155,32 @@ const Meetings = () => {
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
-      <div className="glass-card p-6 flex items-center justify-between">
+      <div className="card p-6 flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white">Meetings</h2>
-          <p className="text-gray-400 mt-1">Schedule and join team meetings</p>
+          <h2 className="text-2xl font-bold text-gray-900">Meetings</h2>
+          <p className="text-gray-500 mt-1">Schedule and join team meetings</p>
         </div>
         <button
           onClick={() => setShowForm(!showForm)}
           className="btn-primary flex items-center gap-2"
         >
           <HiOutlinePlus className="w-5 h-5" />
-          New Meeting
+          Schedule Meeting
         </button>
       </div>
 
       {/* Create Meeting Form */}
       {showForm && (
-        <div className="glass-card p-6 animate-fade-in">
-          <h3 className="text-lg font-semibold text-white mb-4">Schedule New Meeting</h3>
+        <div className="card p-6 animate-fade-in">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Schedule New Meeting</h3>
+            <button onClick={() => setShowForm(false)} className="p-1 hover:bg-gray-100 rounded">
+              <HiOutlineX className="w-5 h-5 text-gray-500" />
+            </button>
+          </div>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Meeting Title *
               </label>
               <input
@@ -180,7 +195,7 @@ const Meetings = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Date & Time *
                 </label>
                 <input
@@ -193,7 +208,7 @@ const Meetings = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Google Meet Link (Optional)
                 </label>
                 <input
@@ -208,7 +223,7 @@ const Meetings = () => {
 
             {/* Attendees */}
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Attendees
               </label>
               <div className="flex flex-wrap gap-2">
@@ -217,10 +232,10 @@ const Meetings = () => {
                     key={emp.id}
                     type="button"
                     onClick={() => toggleAttendee(emp.id)}
-                    className={`px-3 py-1.5 text-sm rounded-full transition-colors ${
+                    className={`px-3 py-1.5 text-sm rounded-full transition-colors border ${
                       formData.attendees.includes(emp.id)
-                        ? 'bg-primary-500 text-white'
-                        : 'bg-dark-bg text-gray-400 hover:text-white'
+                        ? 'bg-primary-500 text-white border-primary-500'
+                        : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-primary-300'
                     }`}
                   >
                     {emp.name}
@@ -229,7 +244,7 @@ const Meetings = () => {
               </div>
             </div>
 
-            <div className="flex gap-4 pt-4">
+            <div className="flex gap-3 pt-4">
               <button
                 type="button"
                 onClick={() => setShowForm(false)}
@@ -242,7 +257,7 @@ const Meetings = () => {
                 disabled={submitting}
                 className="btn-primary flex-1"
               >
-                {submitting ? 'Creating...' : 'Create Meeting'}
+                {submitting ? 'Creating...' : 'Schedule Meeting'}
               </button>
             </div>
           </form>
@@ -250,8 +265,8 @@ const Meetings = () => {
       )}
 
       {/* Upcoming Meetings */}
-      <div className="glass-card p-6">
-        <h3 className="text-lg font-semibold text-white mb-4">Upcoming Meetings</h3>
+      <div className="card p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Upcoming Meetings</h3>
 
         {meetings.length > 0 ? (
           <div className="space-y-4">
@@ -262,24 +277,24 @@ const Meetings = () => {
               return (
                 <div
                   key={meeting.id}
-                  className={`p-4 rounded-lg transition-colors ${
+                  className={`p-4 rounded-lg transition-colors border ${
                     upcoming
-                      ? 'bg-meetings/10 border border-meetings/30'
-                      : 'bg-dark-bg/50 hover:bg-dark-border/30'
+                      ? 'bg-green-50 border-green-200'
+                      : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
                   }`}
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex items-start gap-4">
                       <div className={`p-3 rounded-lg ${
-                        upcoming ? 'bg-meetings/20' : 'bg-dark-border'
+                        upcoming ? 'bg-green-100' : 'bg-gray-200'
                       }`}>
                         <HiOutlineVideoCamera className={`w-6 h-6 ${
-                          upcoming ? 'text-meetings' : 'text-gray-400'
+                          upcoming ? 'text-green-600' : 'text-gray-500'
                         }`} />
                       </div>
                       <div>
-                        <h4 className="font-medium text-white">{meeting.title}</h4>
-                        <div className="flex items-center gap-4 mt-2 text-sm text-gray-400">
+                        <h4 className="font-medium text-gray-900">{meeting.title}</h4>
+                        <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
                           <span className="flex items-center gap-1">
                             <HiOutlineCalendar className="w-4 h-4" />
                             {date}
@@ -296,7 +311,7 @@ const Meetings = () => {
                           )}
                         </div>
                         {meeting.creator && (
-                          <p className="text-xs text-gray-500 mt-1">
+                          <p className="text-xs text-gray-400 mt-1">
                             Created by {meeting.creator.name}
                           </p>
                         )}
@@ -307,10 +322,10 @@ const Meetings = () => {
                       href={meeting.meet_link}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                      className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors text-sm font-medium ${
                         upcoming
-                          ? 'bg-meetings text-white hover:bg-meetings/80'
-                          : 'bg-dark-border text-gray-300 hover:text-white'
+                          ? 'bg-green-500 text-white hover:bg-green-600'
+                          : 'bg-primary-500 text-white hover:bg-primary-600'
                       }`}
                     >
                       <HiOutlineExternalLink className="w-4 h-4" />
@@ -319,8 +334,8 @@ const Meetings = () => {
                   </div>
 
                   {upcoming && (
-                    <div className="mt-3 pt-3 border-t border-meetings/20">
-                      <span className="text-sm text-meetings animate-pulse">
+                    <div className="mt-3 pt-3 border-t border-green-200">
+                      <span className="text-sm text-green-600 animate-pulse font-medium">
                         Starting soon!
                       </span>
                     </div>
@@ -330,10 +345,10 @@ const Meetings = () => {
             })}
           </div>
         ) : (
-          <div className="text-center py-12 text-gray-500">
+          <div className="text-center py-12 text-gray-400">
             <HiOutlineVideoCamera className="w-16 h-16 mx-auto mb-4 opacity-50" />
-            <p className="text-lg">No upcoming meetings</p>
-            <p className="text-sm mt-1">Click "New Meeting" to schedule one</p>
+            <p className="text-lg text-gray-500">No upcoming meetings</p>
+            <p className="text-sm mt-1">Click "Schedule Meeting" to create one</p>
           </div>
         )}
       </div>

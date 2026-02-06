@@ -214,7 +214,7 @@ const Reports = () => {
           onChange={(e) => setSelectedEmployee(e.target.value)}
           className="bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-primary-500"
         >
-          <option value="all">All Employees</option>
+          <option value="all">All Team Members</option>
           {employees.map((emp) => (
             <option key={emp.id} value={emp.id}>{emp.name}</option>
           ))}
@@ -230,7 +230,7 @@ const Reports = () => {
             </div>
             <div>
               <p className="text-2xl font-bold text-white">{stats.totals?.totalEmployees || 0}</p>
-              <p className="text-sm text-gray-400">Total Employees</p>
+              <p className="text-sm text-gray-400">Total Members</p>
             </div>
           </div>
         </div>
@@ -275,13 +275,13 @@ const Reports = () => {
       {/* Employee Table */}
       <div className="glass-card overflow-hidden">
         <div className="p-4 border-b border-dark-border">
-          <h3 className="font-semibold text-white">Employee Performance</h3>
+          <h3 className="font-semibold text-white">Team Performance</h3>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="bg-dark-bg/50 text-left text-sm text-gray-400">
-                <th className="px-6 py-4 font-medium">Employee</th>
+                <th className="px-6 py-4 font-medium">Team Member</th>
                 <th className="px-6 py-4 font-medium">Department</th>
                 <th className="px-6 py-4 font-medium text-center">Work Updates</th>
                 <th className="px-6 py-4 font-medium text-center">Learning</th>

@@ -292,7 +292,7 @@ const Settings = () => {
         <div className="space-y-3 text-sm">
           <div className="flex justify-between py-2 border-b border-dark-border">
             <span className="text-gray-400">Role</span>
-            <span className="text-white capitalize">{employee?.role || 'Employee'}</span>
+            <span className="text-white capitalize">{employee?.role || 'Team Member'}</span>
           </div>
           <div className="flex justify-between py-2 border-b border-dark-border">
             <span className="text-gray-400">Status</span>

@@ -136,7 +136,7 @@ const Profile = () => {
                 </span>
               )}
             </div>
-            <p className="text-gray-500 mt-1">{employee?.designation || employee?.role || 'Employee'}</p>
+            <p className="text-gray-500 mt-1">{employee?.designation || employee?.role || 'Team Member'}</p>
             <p className="text-gray-400 text-sm mt-1">{employee?.department || 'No department assigned'}</p>
           </div>
 

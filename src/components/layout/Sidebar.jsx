@@ -98,7 +98,7 @@ const Sidebar = () => {
               {employee?.name || 'User'}
             </p>
             <p className="text-xs text-primary-600 font-medium truncate">
-              {employee?.role === 'admin' ? 'Administrator' : 'Employee'}
+              {employee?.role === 'admin' ? 'Administrator' : 'Team Member'}
             </p>
           </div>
         </NavLink>

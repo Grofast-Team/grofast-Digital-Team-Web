@@ -284,7 +284,7 @@ const Dashboard = () => {
               {pendingLeaves.length > 0 ? (
                 pendingLeaves.map((leave) => (
                   <div key={leave.id} className="p-4 bg-yellow-50 border border-yellow-100 rounded-lg">
-                    <p className="font-medium text-gray-900">{leave.employee?.name || 'Employee'}</p>
+                    <p className="font-medium text-gray-900">{leave.employee?.name || 'Team Member'}</p>
                     <p className="text-sm text-gray-500">{leave.leave_type} Leave</p>
                     <p className="text-xs text-gray-400 mt-1">
                       {new Date(leave.start_date).toLocaleDateString()} - {new Date(leave.end_date).toLocaleDateString()}
