@@ -1,0 +1,141 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Base styles for light theme */
+body {
+  @apply bg-gray-50 text-gray-900;
+}
+
+/* Custom scrollbar for light theme */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Component styles */
+@layer components {
+  /* Card styles - White with subtle shadow */
+  .glass-card {
+    @apply bg-white border border-gray-200 rounded-xl shadow-card;
+  }
+
+  .glass-card-hover {
+    @apply glass-card hover:shadow-card-hover hover:border-primary-200 transition-all duration-200;
+  }
+
+  /* Gradient - Red theme */
+  .gradient-primary {
+    @apply bg-gradient-to-r from-primary-600 to-primary-500;
+  }
+
+  .gradient-text {
+    @apply bg-gradient-to-r from-primary-500 to-primary-600 bg-clip-text text-transparent;
+  }
+
+  /* Sidebar navigation item */
+  .nav-item {
+    @apply flex items-center gap-3 px-4 py-3 rounded-lg text-gray-600 hover:text-primary-600 hover:bg-primary-50 transition-all duration-200;
+  }
+
+  .nav-item-active {
+    @apply flex items-center gap-3 px-4 py-3 rounded-lg text-primary-600 bg-primary-50 border-l-4 border-primary-500 font-medium;
+  }
+
+  /* Form inputs */
+  .input-field {
+    @apply w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 transition-all duration-200;
+  }
+
+  /* Buttons */
+  .btn-primary {
+    @apply px-6 py-3 gradient-primary text-white font-medium rounded-lg hover:shadow-red hover:opacity-95 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-all duration-200;
+  }
+
+  .btn-secondary {
+    @apply px-6 py-3 bg-white border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-all duration-200;
+  }
+
+  /* Status badges */
+  .badge {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-medium;
+  }
+
+  .badge-success {
+    @apply badge bg-green-100 text-green-700;
+  }
+
+  .badge-warning {
+    @apply badge bg-yellow-100 text-yellow-700;
+  }
+
+  .badge-error {
+    @apply badge bg-red-100 text-red-700;
+  }
+
+  .badge-info {
+    @apply badge bg-blue-100 text-blue-700;
+  }
+
+  /* Stats cards */
+  .stat-card {
+    @apply glass-card p-6 flex flex-col gap-2;
+  }
+
+  .stat-value {
+    @apply text-3xl font-bold text-gray-900;
+  }
+
+  .stat-label {
+    @apply text-sm text-gray-500;
+  }
+
+  /* Table styles */
+  .table-container {
+    @apply glass-card overflow-hidden;
+  }
+
+  .table-header {
+    @apply bg-gray-50 border-b border-gray-200;
+  }
+
+  .table-row {
+    @apply border-b border-gray-100 hover:bg-gray-50 transition-colors;
+  }
+
+  .table-cell {
+    @apply px-6 py-4 text-sm;
+  }
+}
+
+/* Custom utilities */
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+/* Animation for page transitions */
+.page-enter {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.page-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 300ms, transform 300ms;
+}
