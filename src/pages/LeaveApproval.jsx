@@ -25,17 +25,30 @@ const LeaveApproval = () => {
     try {
       let query = supabase
         .from('leave_requests')
-        .select('*, employee:employees(name, email, department)')
+        .select('*')
         .order('created_at', { ascending: false })
 
       if (filter !== 'all') {
         query = query.eq('status', filter)
       }
 
-      const { data, error } = await query
+      const [{ data: leavesData, error: leavesError }, { data: employeesData }] = await Promise.all([
+        query,
+        supabase.from('employees').select('id, name, email, department')
+      ])
 
-      if (error) throw error
-      setLeaves(data || [])
+      if (leavesError) throw leavesError
+
+      // Map employee data to leave requests
+      const employeeMap = {}
+      employeesData?.forEach(emp => { employeeMap[emp.id] = emp })
+
+      const leavesWithEmployee = (leavesData || []).map(leave => ({
+        ...leave,
+        employee: employeeMap[leave.employee_id] || null
+      }))
+
+      setLeaves(leavesWithEmployee)
     } catch (error) {
       console.error('Error fetching leaves:', error)
     } finally {

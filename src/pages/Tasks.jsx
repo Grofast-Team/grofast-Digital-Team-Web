@@ -45,7 +45,7 @@ const Tasks = () => {
     try {
       let query = supabase
         .from('tasks')
-        .select('*, assigned_employee:employees(id, name)')
+        .select('*, assigned_employee:employees!assigned_to(id, name)')
         .order('created_at', { ascending: false })
 
       // If not admin, only show own tasks

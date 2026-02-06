@@ -69,8 +69,8 @@ const Dashboard = () => {
         supabase.from('attendance').select('employee_id, check_in').eq('date', today),
         supabase.from('clients').select('*').eq('is_active', true).order('created_at', { ascending: false }).limit(5),
         supabase.from('announcements').select('*').eq('is_active', true).order('created_at', { ascending: false }).limit(1).maybeSingle(),
-        supabase.from('tasks').select('*, assigned_employee:employees(name)').neq('status', 'completed').order('created_at', { ascending: false }).limit(5),
-        supabase.from('leave_requests').select('*, employee:employees(name)').eq('status', 'pending').order('created_at', { ascending: false }).limit(3)
+        supabase.from('tasks').select('*, assigned_employee:employees!assigned_to(name)').neq('status', 'completed').order('created_at', { ascending: false }).limit(5),
+        supabase.from('leave_requests').select('*').eq('status', 'pending').order('created_at', { ascending: false }).limit(3)
       ])
 
       const presentIds = attendance?.map(a => a.employee_id) || []
@@ -86,10 +86,18 @@ const Dashboard = () => {
         pendingLeaves: leavesData?.length || 0
       })
 
+      // Map employee names to leave requests
+      const employeeMap = {}
+      employees?.forEach(emp => { employeeMap[emp.id] = emp })
+      const leavesWithEmployee = (leavesData || []).map(leave => ({
+        ...leave,
+        employee: employeeMap[leave.employee_id] || null
+      }))
+
       setAnnouncement(announcementData)
       setClients(clientsData || [])
       setRecentTasks(tasksData || [])
-      setPendingLeaves(leavesData || [])
+      setPendingLeaves(leavesWithEmployee)
 
     } catch (error) {
       console.error('Error fetching admin dashboard:', error)
