@@ -37,11 +37,29 @@ export const AuthProvider = ({ children }) => {
   }
 
   useEffect(() => {
-    // Check active session
+    let mounted = true
+
     const getSession = async () => {
       try {
         const { data: { session }, error } = await supabase.auth.getSession()
-        if (error) throw error
+
+        if (!mounted) return
+
+        if (error) {
+          // If AbortError, try again once
+          if (error.message?.includes('AbortError') || error.message?.includes('aborted')) {
+            console.warn('Session fetch aborted, retrying...')
+            const retry = await supabase.auth.getSession()
+            if (!mounted) return
+            if (retry.data?.session?.user) {
+              setUser(retry.data.session.user)
+              await fetchEmployee(retry.data.session.user.id)
+            }
+            setLoading(false)
+            return
+          }
+          throw error
+        }
 
         setUser(session?.user ?? null)
         if (session?.user) {
@@ -49,9 +67,9 @@ export const AuthProvider = ({ children }) => {
         }
       } catch (err) {
         console.error('Session error:', err)
-        setError(err.message)
+        if (mounted) setError(err.message)
       } finally {
-        setLoading(false)
+        if (mounted) setLoading(false)
       }
     }
 
@@ -60,6 +78,7 @@ export const AuthProvider = ({ children }) => {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        if (!mounted) return
         setUser(session?.user ?? null)
         if (session?.user) {
           await fetchEmployee(session.user.id)
@@ -70,7 +89,18 @@ export const AuthProvider = ({ children }) => {
       }
     )
 
-    return () => subscription.unsubscribe()
+    // Safety timeout - never stay loading more than 8 seconds
+    const timeout = setTimeout(() => {
+      if (mounted) {
+        setLoading(false)
+      }
+    }, 8000)
+
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
+      clearTimeout(timeout)
+    }
   }, [])
 
   // Sign in with email and password

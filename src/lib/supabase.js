@@ -14,7 +14,10 @@ export const supabase = createClient(
     auth: {
       autoRefreshToken: true,
       persistSession: true,
-      detectSessionInUrl: true
+      detectSessionInUrl: true,
+      flowType: 'pkce',
+      lock: 'no-op',
+      storageKey: 'grofast-auth',
     },
     realtime: {
       params: {
@@ -28,23 +31,4 @@ export const supabase = createClient(
 export const isSupabaseConfigured = () => {
   return supabaseUrl && supabaseAnonKey &&
          supabaseUrl !== 'https://placeholder.supabase.co'
-}
-
-// Realtime subscription helper
-export const subscribeToTable = (table, callback, filter = null) => {
-  let channel = supabase
-    .channel(`${table}-changes`)
-    .on(
-      'postgres_changes',
-      {
-        event: '*',
-        schema: 'public',
-        table: table,
-        ...(filter && { filter })
-      },
-      callback
-    )
-    .subscribe()
-
-  return () => channel.unsubscribe()
 }
