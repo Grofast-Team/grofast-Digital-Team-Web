@@ -1,20 +1,34 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useAuth } from '../../context/AuthContext'
+import { Link } from 'react-router-dom'
 import {
   HiOutlineBell,
-  HiOutlineSearch
+  HiOutlineSearch,
+  HiOutlineMenu
 } from 'react-icons/hi'
 
-const Topbar = ({ title }) => {
+const Topbar = ({ onMenuToggle }) => {
   const { employee } = useAuth()
-  const [searchQuery, setSearchQuery] = useState('')
-  const [notifications] = useState([
-    { id: 1, message: 'New task assigned', time: '5m ago', unread: true },
-    { id: 2, message: 'Meeting in 30 minutes', time: '25m ago', unread: true },
-  ])
   const [showNotifications, setShowNotifications] = useState(false)
+  const notifRef = useRef(null)
+
+  const [notifications] = useState([
+    { id: 1, message: 'New task assigned to you', time: '5m ago', unread: true },
+    { id: 2, message: 'Team meeting in 30 minutes', time: '25m ago', unread: true },
+  ])
 
   const unreadCount = notifications.filter(n => n.unread).length
+
+  // Close notifications on outside click
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (notifRef.current && !notifRef.current.contains(e.target)) {
+        setShowNotifications(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   const getCurrentGreeting = () => {
     const hour = new Date().getHours()
@@ -26,94 +40,112 @@ const Topbar = ({ title }) => {
   const formatDate = () => {
     return new Date().toLocaleDateString('en-US', {
       weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
     })
   }
 
   return (
-    <header className="h-16 bg-white/80 backdrop-blur-md border-b border-gray-200 flex items-center justify-between px-6 sticky top-0 z-40">
-      {/* Left Section - Title & Date */}
-      <div>
-        <h1 className="text-xl font-semibold text-gray-900">{title}</h1>
-        <p className="text-sm text-gray-500">{formatDate()}</p>
-      </div>
-
-      {/* Center Section - Search */}
-      <div className="flex-1 max-w-md mx-8">
-        <div className="relative">
-          <HiOutlineSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:border-primary-500 focus:bg-white transition-colors"
-          />
-        </div>
-      </div>
-
-      {/* Right Section - Notifications & Profile */}
-      <div className="flex items-center gap-4">
-        {/* Greeting */}
-        <span className="text-sm text-gray-600 hidden md:block">
-          {getCurrentGreeting()}, <span className="font-medium text-gray-900">{employee?.name?.split(' ')[0] || 'User'}</span>
-        </span>
-
-        {/* Notifications */}
-        <div className="relative">
+    <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-gray-100">
+      <div className="flex items-center justify-between h-16 px-4 md:px-6 lg:px-8">
+        {/* Left: Hamburger + Greeting */}
+        <div className="flex items-center gap-3">
           <button
-            onClick={() => setShowNotifications(!showNotifications)}
-            className="relative p-2 rounded-lg hover:bg-gray-100 transition-colors"
+            onClick={onMenuToggle}
+            className="lg:hidden btn-icon"
           >
-            <HiOutlineBell className="w-6 h-6 text-gray-600" />
-            {unreadCount > 0 && (
-              <span className="absolute top-1 right-1 w-4 h-4 bg-primary-500 rounded-full text-xs text-white flex items-center justify-center">
-                {unreadCount}
-              </span>
-            )}
+            <HiOutlineMenu className="w-6 h-6" />
           </button>
 
-          {/* Notifications Dropdown */}
-          {showNotifications && (
-            <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-xl shadow-lg border border-gray-200 py-2 animate-fade-in">
-              <div className="px-4 py-2 border-b border-gray-100">
-                <h3 className="font-medium text-gray-900">Notifications</h3>
-              </div>
-              <div className="max-h-64 overflow-y-auto">
-                {notifications.length > 0 ? (
-                  notifications.map((notification) => (
-                    <div
-                      key={notification.id}
-                      className={`px-4 py-3 hover:bg-gray-50 cursor-pointer ${
-                        notification.unread ? 'bg-primary-50' : ''
-                      }`}
-                    >
-                      <p className="text-sm text-gray-900">{notification.message}</p>
-                      <p className="text-xs text-gray-500 mt-1">{notification.time}</p>
-                    </div>
-                  ))
-                ) : (
-                  <div className="px-4 py-8 text-center text-gray-500">
-                    No notifications
-                  </div>
-                )}
-              </div>
-              <div className="px-4 py-2 border-t border-gray-100">
-                <button className="text-sm text-primary-600 hover:text-primary-700 font-medium">
-                  View all notifications
-                </button>
-              </div>
-            </div>
-          )}
+          <div className="hidden sm:block">
+            <p className="text-sm font-semibold text-gray-900">
+              {getCurrentGreeting()}, {employee?.name?.split(' ')[0] || 'User'}
+            </p>
+            <p className="text-xs text-gray-400">{formatDate()}</p>
+          </div>
+
+          {/* Mobile: Just show name */}
+          <p className="sm:hidden text-sm font-semibold text-gray-900">
+            {employee?.name?.split(' ')[0] || 'User'}
+          </p>
         </div>
 
-        {/* Profile Avatar */}
-        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center cursor-pointer hover:ring-2 hover:ring-primary-300 transition-all shadow-red">
-          <span className="text-white font-medium">
-            {employee?.name?.charAt(0)?.toUpperCase() || 'U'}
-          </span>
+        {/* Center: Search (hidden on small mobile) */}
+        <div className="hidden md:block flex-1 max-w-sm mx-6">
+          <div className="relative">
+            <HiOutlineSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search..."
+              className="w-full pl-10 pr-4 py-2 bg-surface-100 border border-transparent rounded-xl text-sm text-gray-900
+                         placeholder-gray-400 focus:outline-none focus:bg-white focus:border-gray-200 focus:ring-4 focus:ring-primary-500/5
+                         transition-all duration-200"
+            />
+          </div>
+        </div>
+
+        {/* Right: Actions */}
+        <div className="flex items-center gap-2">
+          {/* Notifications */}
+          <div className="relative" ref={notifRef}>
+            <button
+              onClick={() => setShowNotifications(!showNotifications)}
+              className="btn-icon relative"
+            >
+              <HiOutlineBell className="w-5 h-5" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-primary-500 rounded-full text-[10px] text-white
+                               flex items-center justify-center font-bold ring-2 ring-white">
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+
+            {/* Notifications Dropdown */}
+            {showNotifications && (
+              <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-2xl shadow-float border border-gray-100 overflow-hidden animate-fade-in-down">
+                <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+                  <h3 className="font-semibold text-gray-900 text-sm">Notifications</h3>
+                  {unreadCount > 0 && (
+                    <span className="badge-error text-[10px]">{unreadCount} new</span>
+                  )}
+                </div>
+                <div className="max-h-72 overflow-y-auto">
+                  {notifications.map((notif) => (
+                    <div
+                      key={notif.id}
+                      className={`px-4 py-3 border-b border-gray-50 hover:bg-gray-50 cursor-pointer transition-colors ${
+                        notif.unread ? 'bg-primary-50/40' : ''
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        {notif.unread && (
+                          <div className="w-2 h-2 bg-primary-500 rounded-full mt-1.5 flex-shrink-0" />
+                        )}
+                        <div>
+                          <p className="text-sm text-gray-900">{notif.message}</p>
+                          <p className="text-xs text-gray-400 mt-0.5">{notif.time}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="px-4 py-2.5 border-t border-gray-100 bg-gray-50/50">
+                  <button className="text-xs text-primary-600 hover:text-primary-700 font-semibold">
+                    View all notifications
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Profile Avatar */}
+          <Link to="/profile">
+            <div className="avatar-sm shadow-xs cursor-pointer hover:ring-2 hover:ring-primary-200 transition-all">
+              <span className="text-xs">{employee?.name?.charAt(0)?.toUpperCase() || 'U'}</span>
+            </div>
+          </Link>
         </div>
       </div>
     </header>

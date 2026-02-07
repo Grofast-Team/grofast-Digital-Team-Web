@@ -12,32 +12,26 @@ import {
   HiOutlineStar,
   HiOutlineClock,
   HiOutlineDocumentText,
-  HiOutlineCalendar
+  HiOutlineCalendar,
+  HiOutlineArrowRight,
+  HiOutlineTrendingUp
 } from 'react-icons/hi'
 
 const Dashboard = () => {
   const { employee, isAdmin } = useAuth()
   const [loading, setLoading] = useState(true)
 
-  // Admin stats
   const [adminStats, setAdminStats] = useState({
-    presentCount: 0,
-    absentCount: 0,
-    totalEmployees: 0,
-    activeClients: 0,
-    pendingTasks: 0,
-    pendingLeaves: 0
+    presentCount: 0, absentCount: 0, totalEmployees: 0,
+    activeClients: 0, pendingTasks: 0, pendingLeaves: 0
   })
   const [announcement, setAnnouncement] = useState(null)
   const [clients, setClients] = useState([])
   const [recentTasks, setRecentTasks] = useState([])
   const [pendingLeaves, setPendingLeaves] = useState([])
 
-  // Employee stats
   const [employeeStats, setEmployeeStats] = useState({
-    myTasks: 0,
-    completedTasks: 0,
-    pendingLeaves: 0,
+    myTasks: 0, completedTasks: 0, pendingLeaves: 0,
     attendanceStatus: 'not_checked_in'
   })
   const [myTasks, setMyTasks] = useState([])
@@ -55,8 +49,6 @@ const Dashboard = () => {
   const fetchAdminDashboard = async () => {
     try {
       const today = new Date().toISOString().split('T')[0]
-
-      // Run all queries in parallel for faster loading
       const [
         { data: employees },
         { data: attendance },
@@ -73,32 +65,26 @@ const Dashboard = () => {
         supabase.from('leave_requests').select('*').eq('status', 'pending').order('created_at', { ascending: false }).limit(3)
       ])
 
-      const presentIds = attendance?.map(a => a.employee_id) || []
-      const presentCount = presentIds.length
+      const presentCount = attendance?.length || 0
       const absentCount = (employees?.length || 0) - presentCount
 
+      const employeeMap = {}
+      employees?.forEach(emp => { employeeMap[emp.id] = emp })
+      const leavesWithEmployee = (leavesData || []).map(leave => ({
+        ...leave, employee: employeeMap[leave.employee_id] || null
+      }))
+
       setAdminStats({
-        presentCount,
-        absentCount,
+        presentCount, absentCount,
         totalEmployees: employees?.length || 0,
         activeClients: clientsData?.length || 0,
         pendingTasks: tasksData?.length || 0,
         pendingLeaves: leavesData?.length || 0
       })
-
-      // Map employee names to leave requests
-      const employeeMap = {}
-      employees?.forEach(emp => { employeeMap[emp.id] = emp })
-      const leavesWithEmployee = (leavesData || []).map(leave => ({
-        ...leave,
-        employee: employeeMap[leave.employee_id] || null
-      }))
-
       setAnnouncement(announcementData)
       setClients(clientsData || [])
       setRecentTasks(tasksData || [])
       setPendingLeaves(leavesWithEmployee)
-
     } catch (error) {
       console.error('Error fetching admin dashboard:', error)
     } finally {
@@ -109,8 +95,6 @@ const Dashboard = () => {
   const fetchEmployeeDashboard = async () => {
     try {
       const today = new Date().toISOString().split('T')[0]
-
-      // Run all queries in parallel for faster loading
       const [
         { data: tasksData },
         { data: attendanceData },
@@ -123,21 +107,16 @@ const Dashboard = () => {
         supabase.from('announcements').select('*').eq('is_active', true).order('created_at', { ascending: false }).limit(1).maybeSingle()
       ])
 
-      const completedTasks = tasksData?.filter(t => t.status === 'completed').length || 0
-      const pendingTasks = tasksData?.filter(t => t.status !== 'completed').length || 0
-
       setEmployeeStats({
-        myTasks: pendingTasks,
-        completedTasks,
+        myTasks: tasksData?.filter(t => t.status !== 'completed').length || 0,
+        completedTasks: tasksData?.filter(t => t.status === 'completed').length || 0,
         pendingLeaves: leavesData?.length || 0,
         attendanceStatus: attendanceData
           ? (attendanceData.check_out ? 'checked_out' : 'checked_in')
           : 'not_checked_in'
       })
-
       setMyTasks(tasksData || [])
       setAnnouncement(announcementData)
-
     } catch (error) {
       console.error('Error fetching employee dashboard:', error)
     } finally {
@@ -148,201 +127,144 @@ const Dashboard = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full" />
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 border-[3px] border-primary-200 border-t-primary-500 rounded-full animate-spin" />
+          <p className="text-sm text-gray-400 font-medium">Loading dashboard...</p>
+        </div>
       </div>
     )
   }
 
-  // Admin Dashboard
+  // =================== ADMIN DASHBOARD ===================
   if (isAdmin()) {
     return (
-      <div className="space-y-6 animate-fade-in">
-        {/* Announcement Banner */}
+      <div className="space-y-6 max-w-7xl mx-auto">
+        {/* Announcement */}
         {announcement && (
-          <div className="bg-gradient-to-r from-primary-500 to-primary-600 rounded-xl p-4 shadow-lg">
+          <div className="gradient-hero rounded-2xl p-5 shadow-glow-red animate-fade-in">
             <div className="flex items-center gap-3">
-              <HiOutlineSpeakerphone className="w-6 h-6 text-white flex-shrink-0" />
+              <div className="p-2 bg-white/20 rounded-xl">
+                <HiOutlineSpeakerphone className="w-5 h-5 text-white" />
+              </div>
               <div>
-                <h3 className="text-white font-semibold">{announcement.title}</h3>
-                <p className="text-white/80 text-sm">{announcement.message || announcement.content}</p>
+                <h3 className="text-white font-semibold text-sm">{announcement.title}</h3>
+                <p className="text-white/70 text-xs mt-0.5">{announcement.message || announcement.content}</p>
               </div>
             </div>
           </div>
         )}
 
         {/* Welcome */}
-        <div className="card p-6">
-          <h2 className="text-2xl font-bold text-gray-900">
-            Welcome back, {employee?.name?.split(' ')[0] || 'Admin'}!
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900 tracking-tight">
+            Welcome back, {employee?.name?.split(' ')[0] || 'Admin'}
           </h2>
-          <p className="text-gray-500 mt-1">
-            Here's your team overview for today.
-          </p>
+          <p className="text-gray-500 text-sm mt-1">Here's your team overview for today</p>
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Present */}
-          <div className="card p-6 border-l-4 border-green-500">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500">Present Today</p>
-                <p className="text-3xl font-bold text-green-600 mt-1">{adminStats.presentCount}</p>
-              </div>
-              <div className="p-3 bg-green-100 rounded-xl">
-                <HiOutlineCheckCircle className="w-6 h-6 text-green-600" />
-              </div>
-            </div>
-          </div>
-
-          {/* Absent */}
-          <div className="card p-6 border-l-4 border-red-500">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500">Absent Today</p>
-                <p className="text-3xl font-bold text-red-600 mt-1">{adminStats.absentCount}</p>
-              </div>
-              <div className="p-3 bg-red-100 rounded-xl">
-                <HiOutlineXCircle className="w-6 h-6 text-red-600" />
-              </div>
-            </div>
-          </div>
-
-          {/* Active Clients */}
-          <div className="card p-6 border-l-4 border-blue-500">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500">Active Clients</p>
-                <p className="text-3xl font-bold text-blue-600 mt-1">{adminStats.activeClients}</p>
-              </div>
-              <div className="p-3 bg-blue-100 rounded-xl">
-                <HiOutlineBriefcase className="w-6 h-6 text-blue-600" />
-              </div>
-            </div>
-          </div>
-
-          {/* Pending Tasks */}
-          <div className="card p-6 border-l-4 border-orange-500">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500">Pending Tasks</p>
-                <p className="text-3xl font-bold text-orange-600 mt-1">{adminStats.pendingTasks}</p>
-              </div>
-              <div className="p-3 bg-orange-100 rounded-xl">
-                <HiOutlineClipboardList className="w-6 h-6 text-orange-600" />
-              </div>
-            </div>
-          </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCard label="Present Today" value={adminStats.presentCount} icon={HiOutlineCheckCircle} color="emerald" />
+          <StatCard label="Absent Today" value={adminStats.absentCount} icon={HiOutlineXCircle} color="red" />
+          <StatCard label="Active Clients" value={adminStats.activeClients} icon={HiOutlineBriefcase} color="blue" />
+          <StatCard label="Pending Tasks" value={adminStats.pendingTasks} icon={HiOutlineClipboardList} color="amber" />
         </div>
 
-        {/* Main Content Grid */}
+        {/* Main Content */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Client List */}
           <div className="lg:col-span-2 card p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Active Clients</h3>
-              <Link to="/client-of-month" className="text-sm text-primary-600 hover:text-primary-700">
-                View All →
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="section-title">Active Clients</h3>
+              <Link to="/client-of-month" className="text-xs font-semibold text-primary-600 hover:text-primary-700 flex items-center gap-1">
+                View All <HiOutlineArrowRight className="w-3 h-3" />
               </Link>
             </div>
             <div className="space-y-3">
-              {clients.length > 0 ? (
-                clients.map((client) => (
-                  <div key={client.id} className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center">
-                      <span className="text-white font-medium">
-                        {client.name?.charAt(0)?.toUpperCase() || 'C'}
-                      </span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-gray-900 truncate">{client.name}</p>
-                      <p className="text-sm text-gray-500 truncate">{client.company || 'No company'}</p>
-                    </div>
-                    {client.is_client_of_month && (
-                      <HiOutlineStar className="w-5 h-5 text-yellow-500" />
-                    )}
+              {clients.length > 0 ? clients.map((client) => (
+                <div key={client.id} className="flex items-center gap-4 p-3.5 rounded-xl bg-surface-50 hover:bg-surface-100 transition-colors">
+                  <div className="avatar-md">
+                    <span>{client.name?.charAt(0)?.toUpperCase() || 'C'}</span>
                   </div>
-                ))
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <HiOutlineBriefcase className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                  <p>No clients yet</p>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-gray-900 text-sm truncate">{client.name}</p>
+                    <p className="text-xs text-gray-400 truncate">{client.company || 'No company'}</p>
+                  </div>
+                  {client.is_client_of_month && (
+                    <div className="p-1.5 bg-amber-50 rounded-lg">
+                      <HiOutlineStar className="w-4 h-4 text-amber-500" />
+                    </div>
+                  )}
                 </div>
+              )) : (
+                <EmptyState icon={HiOutlineBriefcase} text="No clients yet" />
               )}
             </div>
           </div>
 
-          {/* Pending Leave Requests */}
+          {/* Pending Leaves */}
           <div className="card p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Pending Leaves</h3>
-              <Link to="/leaves" className="text-sm text-primary-600 hover:text-primary-700">
-                Review →
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="section-title">Pending Leaves</h3>
+              <Link to="/leaves" className="text-xs font-semibold text-primary-600 hover:text-primary-700 flex items-center gap-1">
+                Review <HiOutlineArrowRight className="w-3 h-3" />
               </Link>
             </div>
             <div className="space-y-3">
-              {pendingLeaves.length > 0 ? (
-                pendingLeaves.map((leave) => (
-                  <div key={leave.id} className="p-4 bg-yellow-50 border border-yellow-100 rounded-lg">
-                    <p className="font-medium text-gray-900">{leave.employee?.name || 'Team Member'}</p>
-                    <p className="text-sm text-gray-500">{leave.leave_type} Leave</p>
-                    <p className="text-xs text-gray-400 mt-1">
-                      {new Date(leave.start_date).toLocaleDateString()} - {new Date(leave.end_date).toLocaleDateString()}
-                    </p>
-                  </div>
-                ))
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <HiOutlineDocumentText className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                  <p>No pending requests</p>
+              {pendingLeaves.length > 0 ? pendingLeaves.map((leave) => (
+                <div key={leave.id} className="p-3.5 bg-amber-50/50 border border-amber-100 rounded-xl">
+                  <p className="font-semibold text-gray-900 text-sm">{leave.employee?.name || 'Team Member'}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">{leave.leave_type} Leave</p>
+                  <p className="text-[11px] text-gray-400 mt-1">
+                    {new Date(leave.start_date).toLocaleDateString()} - {new Date(leave.end_date).toLocaleDateString()}
+                  </p>
                 </div>
+              )) : (
+                <EmptyState icon={HiOutlineDocumentText} text="No pending requests" />
               )}
             </div>
           </div>
         </div>
 
         {/* Recent Tasks */}
-        <div className="card p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Recent Tasks</h3>
-            <Link to="/tasks" className="text-sm text-primary-600 hover:text-primary-700">
-              View Board →
+        <div className="card overflow-hidden">
+          <div className="flex items-center justify-between p-6 pb-4">
+            <h3 className="section-title">Recent Tasks</h3>
+            <Link to="/tasks" className="text-xs font-semibold text-primary-600 hover:text-primary-700 flex items-center gap-1">
+              View Board <HiOutlineArrowRight className="w-3 h-3" />
             </Link>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Task</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Assigned To</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Status</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Priority</th>
+                <tr className="border-t border-b border-gray-100 bg-surface-50">
+                  <th className="text-left py-3 px-6 text-[11px] font-bold text-gray-400 uppercase tracking-wider">Task</th>
+                  <th className="text-left py-3 px-6 text-[11px] font-bold text-gray-400 uppercase tracking-wider hidden sm:table-cell">Assigned To</th>
+                  <th className="text-left py-3 px-6 text-[11px] font-bold text-gray-400 uppercase tracking-wider">Status</th>
+                  <th className="text-left py-3 px-6 text-[11px] font-bold text-gray-400 uppercase tracking-wider hidden md:table-cell">Priority</th>
                 </tr>
               </thead>
               <tbody>
                 {recentTasks.map((task) => (
-                  <tr key={task.id} className="border-b border-gray-100">
-                    <td className="py-3 px-4">
-                      <p className="font-medium text-gray-900">{task.title}</p>
+                  <tr key={task.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                    <td className="py-3.5 px-6">
+                      <p className="font-semibold text-gray-900 text-sm">{task.title}</p>
                     </td>
-                    <td className="py-3 px-4 text-sm text-gray-500">
-                      {task.assigned_employee?.name || 'Unassigned'}
+                    <td className="py-3.5 px-6 hidden sm:table-cell">
+                      <span className="text-sm text-gray-500">{task.assigned_employee?.name || 'Unassigned'}</span>
                     </td>
-                    <td className="py-3 px-4">
-                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                        task.status === 'completed' ? 'bg-green-100 text-green-700' :
-                        task.status === 'in_progress' ? 'bg-blue-100 text-blue-700' :
-                        'bg-gray-100 text-gray-700'
+                    <td className="py-3.5 px-6">
+                      <span className={`badge ${
+                        task.status === 'completed' ? 'badge-success' :
+                        task.status === 'in_progress' ? 'badge-info' : 'badge-neutral'
                       }`}>
-                        {task.status === 'in_progress' ? 'In Progress' :
-                         task.status?.charAt(0).toUpperCase() + task.status?.slice(1)}
+                        {task.status === 'in_progress' ? 'In Progress' : task.status?.charAt(0).toUpperCase() + task.status?.slice(1)}
                       </span>
                     </td>
-                    <td className="py-3 px-4">
-                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                        task.priority === 'high' ? 'bg-red-100 text-red-700' :
-                        task.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' :
-                        'bg-gray-100 text-gray-700'
+                    <td className="py-3.5 px-6 hidden md:table-cell">
+                      <span className={`badge ${
+                        task.priority === 'high' ? 'badge-error' :
+                        task.priority === 'medium' ? 'badge-warning' : 'badge-neutral'
                       }`}>
                         {task.priority?.charAt(0).toUpperCase() + task.priority?.slice(1)}
                       </span>
@@ -352,9 +274,7 @@ const Dashboard = () => {
               </tbody>
             </table>
             {recentTasks.length === 0 && (
-              <div className="text-center py-8 text-gray-500">
-                <p>No tasks yet</p>
-              </div>
+              <div className="py-10"><EmptyState icon={HiOutlineClipboardList} text="No tasks yet" /></div>
             )}
           </div>
         </div>
@@ -362,186 +282,151 @@ const Dashboard = () => {
     )
   }
 
-  // Employee Dashboard
+  // =================== TEAM MEMBER DASHBOARD ===================
   return (
-    <div className="space-y-6 animate-fade-in">
-      {/* Announcement Banner */}
+    <div className="space-y-6 max-w-7xl mx-auto">
+      {/* Announcement */}
       {announcement && (
-        <div className="bg-gradient-to-r from-primary-500 to-primary-600 rounded-xl p-4 shadow-lg">
+        <div className="gradient-hero rounded-2xl p-5 shadow-glow-red animate-fade-in">
           <div className="flex items-center gap-3">
-            <HiOutlineSpeakerphone className="w-6 h-6 text-white flex-shrink-0" />
+            <div className="p-2 bg-white/20 rounded-xl">
+              <HiOutlineSpeakerphone className="w-5 h-5 text-white" />
+            </div>
             <div>
-              <h3 className="text-white font-semibold">{announcement.title}</h3>
-              <p className="text-white/80 text-sm">{announcement.message || announcement.content}</p>
+              <h3 className="text-white font-semibold text-sm">{announcement.title}</h3>
+              <p className="text-white/70 text-xs mt-0.5">{announcement.message || announcement.content}</p>
             </div>
           </div>
         </div>
       )}
 
       {/* Welcome */}
-      <div className="card p-6">
-        <h2 className="text-2xl font-bold text-gray-900">
-          Welcome back, {employee?.name?.split(' ')[0] || 'User'}!
+      <div>
+        <h2 className="text-2xl font-bold text-gray-900 tracking-tight">
+          Welcome back, {employee?.name?.split(' ')[0] || 'User'}
         </h2>
-        <p className="text-gray-500 mt-1">
-          Here's what's happening with your work today.
-        </p>
+        <p className="text-gray-500 text-sm mt-1">Here's what's happening with your work today</p>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Attendance Status */}
-        <div className={`card p-6 border-l-4 ${
-          employeeStats.attendanceStatus === 'checked_in' ? 'border-green-500' :
-          employeeStats.attendanceStatus === 'checked_out' ? 'border-blue-500' :
-          'border-yellow-500'
-        }`}>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">Attendance</p>
-              <p className={`text-lg font-bold mt-1 ${
-                employeeStats.attendanceStatus === 'checked_in' ? 'text-green-600' :
-                employeeStats.attendanceStatus === 'checked_out' ? 'text-blue-600' :
-                'text-yellow-600'
-              }`}>
-                {employeeStats.attendanceStatus === 'checked_in' ? 'Checked In' :
-                 employeeStats.attendanceStatus === 'checked_out' ? 'Checked Out' :
-                 'Not Checked In'}
-              </p>
-            </div>
-            <div className={`p-3 rounded-xl ${
-              employeeStats.attendanceStatus === 'checked_in' ? 'bg-green-100' :
-              employeeStats.attendanceStatus === 'checked_out' ? 'bg-blue-100' :
-              'bg-yellow-100'
-            }`}>
-              <HiOutlineClock className={`w-6 h-6 ${
-                employeeStats.attendanceStatus === 'checked_in' ? 'text-green-600' :
-                employeeStats.attendanceStatus === 'checked_out' ? 'text-blue-600' :
-                'text-yellow-600'
-              }`} />
-            </div>
-          </div>
-        </div>
-
-        {/* My Tasks */}
-        <div className="card p-6 border-l-4 border-blue-500">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">My Tasks</p>
-              <p className="text-3xl font-bold text-blue-600 mt-1">{employeeStats.myTasks}</p>
-            </div>
-            <div className="p-3 bg-blue-100 rounded-xl">
-              <HiOutlineClipboardList className="w-6 h-6 text-blue-600" />
-            </div>
-          </div>
-        </div>
-
-        {/* Completed Tasks */}
-        <div className="card p-6 border-l-4 border-green-500">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">Completed</p>
-              <p className="text-3xl font-bold text-green-600 mt-1">{employeeStats.completedTasks}</p>
-            </div>
-            <div className="p-3 bg-green-100 rounded-xl">
-              <HiOutlineCheckCircle className="w-6 h-6 text-green-600" />
-            </div>
-          </div>
-        </div>
-
-        {/* Pending Leaves */}
-        <div className="card p-6 border-l-4 border-orange-500">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">Pending Leaves</p>
-              <p className="text-3xl font-bold text-orange-600 mt-1">{employeeStats.pendingLeaves}</p>
-            </div>
-            <div className="p-3 bg-orange-100 rounded-xl">
-              <HiOutlineDocumentText className="w-6 h-6 text-orange-600" />
-            </div>
-          </div>
-        </div>
+      {/* Stats */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          label="Attendance"
+          value={employeeStats.attendanceStatus === 'checked_in' ? 'In' :
+                 employeeStats.attendanceStatus === 'checked_out' ? 'Out' : '--'}
+          icon={HiOutlineClock}
+          color={employeeStats.attendanceStatus === 'checked_in' ? 'emerald' :
+                 employeeStats.attendanceStatus === 'checked_out' ? 'blue' : 'amber'}
+          subtitle={employeeStats.attendanceStatus === 'checked_in' ? 'Checked In' :
+                    employeeStats.attendanceStatus === 'checked_out' ? 'Checked Out' : 'Not Checked In'}
+        />
+        <StatCard label="My Tasks" value={employeeStats.myTasks} icon={HiOutlineClipboardList} color="blue" />
+        <StatCard label="Completed" value={employeeStats.completedTasks} icon={HiOutlineCheckCircle} color="emerald" />
+        <StatCard label="Pending Leaves" value={employeeStats.pendingLeaves} icon={HiOutlineDocumentText} color="amber" />
       </div>
 
-      {/* Main Content */}
+      {/* Content */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* My Tasks List */}
+        {/* Tasks */}
         <div className="lg:col-span-2 card p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">My Tasks</h3>
-            <Link to="/tasks" className="text-sm text-primary-600 hover:text-primary-700">
-              View All →
+          <div className="flex items-center justify-between mb-5">
+            <h3 className="section-title">My Tasks</h3>
+            <Link to="/tasks" className="text-xs font-semibold text-primary-600 hover:text-primary-700 flex items-center gap-1">
+              View All <HiOutlineArrowRight className="w-3 h-3" />
             </Link>
           </div>
           <div className="space-y-3">
-            {myTasks.length > 0 ? (
-              myTasks.map((task) => (
-                <div key={task.id} className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
-                  <div className={`w-3 h-3 rounded-full ${
-                    task.priority === 'high' ? 'bg-red-500' :
-                    task.priority === 'medium' ? 'bg-yellow-500' :
-                    'bg-gray-400'
-                  }`} />
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-gray-900 truncate">{task.title}</p>
-                    <p className="text-sm text-gray-500">{task.description?.substring(0, 50) || 'No description'}</p>
-                  </div>
-                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                    task.status === 'completed' ? 'bg-green-100 text-green-700' :
-                    task.status === 'in_progress' ? 'bg-blue-100 text-blue-700' :
-                    'bg-gray-100 text-gray-700'
-                  }`}>
-                    {task.status === 'in_progress' ? 'In Progress' :
-                     task.status?.charAt(0).toUpperCase() + task.status?.slice(1)}
-                  </span>
+            {myTasks.length > 0 ? myTasks.map((task) => (
+              <div key={task.id} className="flex items-center gap-4 p-3.5 rounded-xl bg-surface-50 hover:bg-surface-100 transition-colors">
+                <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
+                  task.priority === 'high' ? 'bg-red-500' :
+                  task.priority === 'medium' ? 'bg-amber-500' : 'bg-gray-300'
+                }`} />
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-gray-900 text-sm truncate">{task.title}</p>
+                  <p className="text-xs text-gray-400 truncate mt-0.5">{task.description?.substring(0, 60) || 'No description'}</p>
                 </div>
-              ))
-            ) : (
-              <div className="text-center py-8 text-gray-500">
-                <HiOutlineClipboardList className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                <p>No tasks assigned</p>
+                <span className={`badge ${
+                  task.status === 'completed' ? 'badge-success' :
+                  task.status === 'in_progress' ? 'badge-info' : 'badge-neutral'
+                }`}>
+                  {task.status === 'in_progress' ? 'In Progress' : task.status?.charAt(0).toUpperCase() + task.status?.slice(1)}
+                </span>
               </div>
+            )) : (
+              <EmptyState icon={HiOutlineClipboardList} text="No tasks assigned" />
             )}
           </div>
         </div>
 
         {/* Quick Actions */}
         <div className="card p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
-          <div className="space-y-3">
-            <Link
-              to="/tasks"
-              className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-            >
-              <HiOutlineClipboardList className="w-5 h-5 text-blue-500" />
-              <span className="text-gray-700">View Tasks</span>
-            </Link>
-            <Link
-              to="/my-leaves"
-              className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-            >
-              <HiOutlineDocumentText className="w-5 h-5 text-orange-500" />
-              <span className="text-gray-700">Request Leave</span>
-            </Link>
-            <Link
-              to="/calendar"
-              className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-            >
-              <HiOutlineCalendar className="w-5 h-5 text-purple-500" />
-              <span className="text-gray-700">View Calendar</span>
-            </Link>
-            <Link
-              to="/team"
-              className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-            >
-              <HiOutlineUserGroup className="w-5 h-5 text-green-500" />
-              <span className="text-gray-700">Team Details</span>
-            </Link>
+          <h3 className="section-title mb-4">Quick Actions</h3>
+          <div className="space-y-2">
+            {[
+              { to: '/tasks', icon: HiOutlineClipboardList, label: 'View Tasks', color: 'text-blue-500 bg-blue-50' },
+              { to: '/my-leaves', icon: HiOutlineDocumentText, label: 'Request Leave', color: 'text-amber-500 bg-amber-50' },
+              { to: '/calendar', icon: HiOutlineCalendar, label: 'View Calendar', color: 'text-purple-500 bg-purple-50' },
+              { to: '/team', icon: HiOutlineUserGroup, label: 'Team Details', color: 'text-emerald-500 bg-emerald-50' },
+            ].map(({ to, icon: Icon, label, color }) => (
+              <Link
+                key={to}
+                to={to}
+                className="flex items-center gap-3 p-3 rounded-xl hover:bg-surface-50 transition-all duration-200 group"
+              >
+                <div className={`p-2 rounded-lg ${color} transition-transform group-hover:scale-110`}>
+                  <Icon className="w-4 h-4" />
+                </div>
+                <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900">{label}</span>
+                <HiOutlineArrowRight className="w-3.5 h-3.5 text-gray-300 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
+              </Link>
+            ))}
           </div>
         </div>
       </div>
     </div>
   )
 }
+
+// =================== COMPONENTS ===================
+
+const StatCard = ({ label, value, icon: Icon, color, trend, subtitle }) => {
+  const colorMap = {
+    emerald: { bg: 'bg-emerald-50', text: 'text-emerald-600', icon: 'text-emerald-500' },
+    red: { bg: 'bg-red-50', text: 'text-red-600', icon: 'text-red-500' },
+    blue: { bg: 'bg-blue-50', text: 'text-blue-600', icon: 'text-blue-500' },
+    amber: { bg: 'bg-amber-50', text: 'text-amber-600', icon: 'text-amber-500' },
+    purple: { bg: 'bg-purple-50', text: 'text-purple-600', icon: 'text-purple-500' },
+  }
+  const c = colorMap[color] || colorMap.blue
+
+  return (
+    <div className="card-hover p-5">
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="stat-label">{label}</p>
+          <p className={`text-2xl font-bold mt-1 tracking-tight ${c.text}`}>{value}</p>
+          {subtitle && <p className="text-[11px] text-gray-400 mt-0.5">{subtitle}</p>}
+          {trend && (
+            <div className="flex items-center gap-1 mt-1">
+              <HiOutlineTrendingUp className="w-3 h-3 text-emerald-500" />
+              <span className="text-[11px] font-semibold text-emerald-600">{trend} today</span>
+            </div>
+          )}
+        </div>
+        <div className={`p-2.5 rounded-xl ${c.bg}`}>
+          <Icon className={`w-5 h-5 ${c.icon}`} />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+const EmptyState = ({ icon: Icon, text }) => (
+  <div className="text-center py-8">
+    <Icon className="w-10 h-10 mx-auto text-gray-200 mb-2" />
+    <p className="text-sm text-gray-400">{text}</p>
+  </div>
+)
 
 export default Dashboard

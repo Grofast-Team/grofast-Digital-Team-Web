@@ -7,12 +7,13 @@ import {
   HiOutlineUserGroup,
   HiOutlineDocumentText,
   HiOutlineCalendar,
+  HiOutlineVideoCamera,
   HiOutlineCog,
   HiOutlineLogout,
-  HiOutlineBell
+  HiOutlineX
 } from 'react-icons/hi'
 
-const Sidebar = () => {
+const Sidebar = ({ isOpen, onClose }) => {
   const { employee, signOut, isAdmin } = useAuth()
 
   const navItems = [
@@ -21,6 +22,7 @@ const Sidebar = () => {
     { name: 'Tasks', path: '/tasks', icon: HiOutlineClipboardList },
     { name: 'Team Details', path: '/team', icon: HiOutlineUserGroup },
     { name: 'Leave Approval', path: '/leaves', icon: HiOutlineDocumentText, adminOnly: true },
+    { name: 'Meetings', path: '/meetings', icon: HiOutlineVideoCamera },
     { name: 'Calendar', path: '/calendar', icon: HiOutlineCalendar },
   ]
 
@@ -29,24 +31,37 @@ const Sidebar = () => {
   }
 
   return (
-    <aside className="fixed left-0 top-0 h-screen w-64 bg-white border-r border-gray-200 flex flex-col z-50 shadow-sm">
-      {/* Logo */}
-      <div className="p-6 border-b border-gray-200">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl gradient-primary flex items-center justify-center shadow-red">
-            <span className="text-white font-bold text-xl">G</span>
+    <aside className={`
+      fixed left-0 top-0 h-screen w-[272px] bg-white border-r border-gray-100
+      flex flex-col z-50 shadow-soft
+      transition-transform duration-300 ease-out
+      ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+      lg:translate-x-0
+    `}>
+      {/* Logo Header */}
+      <div className="px-6 py-5 border-b border-gray-100">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center shadow-glow-red">
+              <span className="text-white font-bold text-lg">G</span>
+            </div>
+            <div>
+              <h1 className="text-lg font-bold text-gray-900 tracking-tight">GROFAST</h1>
+              <p className="text-[10px] font-semibold text-primary-500 uppercase tracking-widest">Digital Team</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">GROFAST</h1>
-            <p className="text-xs text-gray-500">Team Management</p>
-          </div>
+          {/* Mobile close button */}
+          <button onClick={onClose} className="lg:hidden btn-icon">
+            <HiOutlineX className="w-5 h-5" />
+          </button>
         </div>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+      <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto scrollbar-hide">
+        <p className="px-4 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Menu</p>
+
         {navItems.map((item) => {
-          // Skip admin-only items for non-admins
           if (item.adminOnly && !isAdmin()) return null
 
           return (
@@ -57,70 +72,81 @@ const Sidebar = () => {
                 isActive ? 'nav-item-active' : 'nav-item'
               }
             >
-              <item.icon className="w-5 h-5" />
+              <item.icon className="w-5 h-5 flex-shrink-0" />
               <span>{item.name}</span>
             </NavLink>
           )
         })}
 
-        {/* Employee-only: My Leave Requests */}
+        {/* Team member only: My Leaves */}
         {!isAdmin() && (
-          <NavLink
-            to="/my-leaves"
-            className={({ isActive }) =>
-              isActive ? 'nav-item-active' : 'nav-item'
-            }
-          >
-            <HiOutlineDocumentText className="w-5 h-5" />
-            <span>My Leaves</span>
-          </NavLink>
+          <>
+            <div className="my-3 border-t border-gray-100" />
+            <p className="px-4 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Personal</p>
+            <NavLink
+              to="/my-leaves"
+              className={({ isActive }) =>
+                isActive ? 'nav-item-active' : 'nav-item'
+              }
+            >
+              <HiOutlineDocumentText className="w-5 h-5 flex-shrink-0" />
+              <span>My Leaves</span>
+            </NavLink>
+          </>
         )}
       </nav>
 
-      {/* User Profile & Settings */}
-      <div className="p-4 border-t border-gray-200">
-        {/* User Info - Clickable Profile Link */}
+      {/* User Section */}
+      <div className="p-4 border-t border-gray-100 space-y-2">
+        {/* Profile */}
         <NavLink
           to="/profile"
           className={({ isActive }) =>
-            `flex items-center gap-3 px-4 py-3 mb-2 rounded-lg transition-colors cursor-pointer ${
-              isActive ? 'bg-primary-50 ring-2 ring-primary-200' : 'bg-gray-50 hover:bg-gray-100'
+            `flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 ${
+              isActive
+                ? 'bg-primary-50 ring-1 ring-primary-200'
+                : 'hover:bg-gray-50'
             }`
           }
         >
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center shadow-sm">
-            <span className="text-white font-medium">
-              {employee?.name?.charAt(0)?.toUpperCase() || 'U'}
-            </span>
+          <div className="avatar-md shadow-soft">
+            <span>{employee?.name?.charAt(0)?.toUpperCase() || 'U'}</span>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-gray-900 truncate">
+            <p className="text-sm font-semibold text-gray-900 truncate">
               {employee?.name || 'User'}
             </p>
-            <p className="text-xs text-primary-600 font-medium truncate">
+            <p className="text-xs font-medium text-primary-500 truncate">
               {employee?.role === 'admin' ? 'Administrator' : 'Team Member'}
             </p>
           </div>
         </NavLink>
 
         {/* Settings & Logout */}
-        <NavLink
-          to="/settings"
-          className={({ isActive }) =>
-            isActive ? 'nav-item-active' : 'nav-item'
-          }
-        >
-          <HiOutlineCog className="w-5 h-5 text-gray-500" />
-          <span>Settings</span>
-        </NavLink>
+        <div className="flex gap-1">
+          <NavLink
+            to="/settings"
+            className={({ isActive }) =>
+              `flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
+                isActive
+                  ? 'bg-gray-100 text-gray-900'
+                  : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
+              }`
+            }
+          >
+            <HiOutlineCog className="w-4 h-4" />
+            <span>Settings</span>
+          </NavLink>
 
-        <button
-          onClick={handleSignOut}
-          className="nav-item w-full text-red-500 hover:text-red-600 hover:bg-red-50"
-        >
-          <HiOutlineLogout className="w-5 h-5" />
-          <span>Sign Out</span>
-        </button>
+          <button
+            onClick={handleSignOut}
+            className="flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-sm font-medium
+                       text-red-500 hover:bg-red-50 hover:text-red-600 transition-all duration-200"
+          >
+            <HiOutlineLogout className="w-4 h-4" />
+            <span>Logout</span>
+          </button>
+        </div>
       </div>
     </aside>
   )
