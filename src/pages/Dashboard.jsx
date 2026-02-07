@@ -43,20 +43,19 @@ const Dashboard = () => {
       } else {
         fetchEmployeeDashboard()
       }
+    } else {
+      // If no employee data after auth, stop loading
+      const timer = setTimeout(() => setLoading(false), 2000)
+      return () => clearTimeout(timer)
     }
   }, [employee])
 
   const fetchAdminDashboard = async () => {
     try {
       const today = new Date().toISOString().split('T')[0]
-      const [
-        { data: employees },
-        { data: attendance },
-        { data: clientsData },
-        { data: announcementData },
-        { data: tasksData },
-        { data: leavesData }
-      ] = await Promise.all([
+
+      // Use Promise.allSettled so one failing query doesn't block everything
+      const results = await Promise.allSettled([
         supabase.from('employees').select('id, name, role, department'),
         supabase.from('attendance').select('employee_id, check_in').eq('date', today),
         supabase.from('clients').select('*').eq('is_active', true).order('created_at', { ascending: false }).limit(5),
@@ -64,6 +63,15 @@ const Dashboard = () => {
         supabase.from('tasks').select('*, assigned_employee:employees!assigned_to(name)').neq('status', 'completed').order('created_at', { ascending: false }).limit(5),
         supabase.from('leave_requests').select('*').eq('status', 'pending').order('created_at', { ascending: false }).limit(3)
       ])
+
+      const getData = (index) => results[index]?.status === 'fulfilled' ? results[index].value?.data : null
+
+      const employees = getData(0)
+      const attendance = getData(1)
+      const clientsData = getData(2)
+      const announcementData = getData(3)
+      const tasksData = getData(4)
+      const leavesData = getData(5)
 
       const presentCount = attendance?.length || 0
       const absentCount = (employees?.length || 0) - presentCount
@@ -95,17 +103,19 @@ const Dashboard = () => {
   const fetchEmployeeDashboard = async () => {
     try {
       const today = new Date().toISOString().split('T')[0]
-      const [
-        { data: tasksData },
-        { data: attendanceData },
-        { data: leavesData },
-        { data: announcementData }
-      ] = await Promise.all([
+
+      const results = await Promise.allSettled([
         supabase.from('tasks').select('*').eq('assigned_to', employee.id).order('created_at', { ascending: false }).limit(5),
         supabase.from('attendance').select('*').eq('employee_id', employee.id).eq('date', today).maybeSingle(),
         supabase.from('leave_requests').select('*').eq('employee_id', employee.id).eq('status', 'pending'),
         supabase.from('announcements').select('*').eq('is_active', true).order('created_at', { ascending: false }).limit(1).maybeSingle()
       ])
+
+      const getData = (i) => results[i]?.status === 'fulfilled' ? results[i].value?.data : null
+      const tasksData = getData(0)
+      const attendanceData = getData(1)
+      const leavesData = getData(2)
+      const announcementData = getData(3)
 
       setEmployeeStats({
         myTasks: tasksData?.filter(t => t.status !== 'completed').length || 0,
