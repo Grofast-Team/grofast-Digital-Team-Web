@@ -16,8 +16,11 @@ export const supabase = createClient(
       persistSession: true,
       detectSessionInUrl: true,
       flowType: 'pkce',
-      lock: 'no-op',
       storageKey: 'grofast-auth',
+      lock: async (name, acquireTimeout, fn) => {
+        // Bypass Web Locks API to avoid AbortError in some browsers
+        return await fn()
+      },
     },
     realtime: {
       params: {
