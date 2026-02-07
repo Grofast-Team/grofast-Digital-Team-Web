@@ -9,7 +9,9 @@ import {
   HiOutlineClipboardList,
   HiOutlinePlus,
   HiOutlineX,
-  HiOutlineUserGroup
+  HiOutlineUserGroup,
+  HiOutlinePencil,
+  HiOutlineTrash
 } from 'react-icons/hi'
 
 const Calendar = () => {
@@ -20,6 +22,7 @@ const Calendar = () => {
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [employees, setEmployees] = useState([])
+  const [editingEvent, setEditingEvent] = useState(null)
 
   // Mention states
   const [showMentions, setShowMentions] = useState(false)
@@ -100,30 +103,6 @@ const Calendar = () => {
     }
   }
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    try {
-      const { error } = await supabase
-        .from('meetings')
-        .insert({
-          title: formData.title,
-          description: formData.description,
-          datetime: formData.datetime,
-          meet_link: formData.meet_link || null,
-          attendees: formData.attendees,
-          created_by: employee.id
-        })
-
-      if (error) throw error
-
-      setShowModal(false)
-      resetForm()
-      fetchEvents()
-    } catch (error) {
-      console.error('Error creating meeting:', error)
-    }
-  }
-
   const resetForm = () => {
     setFormData({
       title: '',
@@ -132,6 +111,105 @@ const Calendar = () => {
       meet_link: '',
       attendees: []
     })
+    setEditingEvent(null)
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    try {
+      if (editingEvent) {
+        if (editingEvent.type === 'meeting') {
+          const { error } = await supabase
+            .from('meetings')
+            .update({
+              title: formData.title,
+              description: formData.description,
+              datetime: formData.datetime,
+              meet_link: formData.meet_link || null,
+              attendees: formData.attendees
+            })
+            .eq('id', editingEvent.id)
+
+          if (error) throw error
+        } else {
+          const { error } = await supabase
+            .from('tasks')
+            .update({
+              title: formData.title,
+              description: formData.description,
+              due_date: formData.datetime ? formData.datetime.split('T')[0] : null
+            })
+            .eq('id', editingEvent.id)
+
+          if (error) throw error
+        }
+      } else {
+        const { error } = await supabase
+          .from('meetings')
+          .insert({
+            title: formData.title,
+            description: formData.description,
+            datetime: formData.datetime,
+            meet_link: formData.meet_link || null,
+            attendees: formData.attendees,
+            created_by: employee.id
+          })
+
+        if (error) throw error
+      }
+
+      setShowModal(false)
+      resetForm()
+      fetchEvents()
+    } catch (error) {
+      console.error('Error saving event:', error)
+    }
+  }
+
+  const openEditModal = (event) => {
+    setEditingEvent(event)
+
+    if (event.type === 'meeting') {
+      const dt = new Date(event.datetime)
+      const localDt = new Date(dt.getTime() - dt.getTimezoneOffset() * 60000)
+        .toISOString()
+        .slice(0, 16)
+
+      setFormData({
+        title: event.title || '',
+        description: event.description || '',
+        datetime: localDt,
+        meet_link: event.meet_link || '',
+        attendees: event.attendees || []
+      })
+    } else {
+      setFormData({
+        title: event.title || '',
+        description: event.description || '',
+        datetime: event.due_date || '',
+        meet_link: '',
+        attendees: []
+      })
+    }
+    setShowModal(true)
+  }
+
+  const handleDeleteEvent = async (event) => {
+    const label = event.type === 'meeting' ? 'meeting' : 'task'
+    if (!confirm(`Are you sure you want to delete this ${label}?`)) return
+
+    try {
+      const table = event.type === 'meeting' ? 'meetings' : 'tasks'
+      const { error } = await supabase
+        .from(table)
+        .delete()
+        .eq('id', event.id)
+
+      if (error) throw error
+      fetchEvents()
+    } catch (error) {
+      console.error('Error deleting event:', error)
+    }
   }
 
   const handleDescriptionChange = (e) => {
@@ -146,7 +224,6 @@ const Calendar = () => {
 
     if (lastAtIndex !== -1) {
       const textAfterAt = textBeforeCursor.substring(lastAtIndex + 1)
-      // Only show mentions if there's no space after @
       if (!textAfterAt.includes(' ')) {
         setMentionSearch(textAfterAt.toLowerCase())
         setShowMentions(true)
@@ -174,7 +251,6 @@ const Calendar = () => {
     })
     setShowMentions(false)
 
-    // Focus back on textarea
     setTimeout(() => {
       descriptionRef.current?.focus()
     }, 0)
@@ -427,6 +503,24 @@ const Calendar = () => {
                           </span>
                         )}
                       </div>
+
+                      {/* Edit & Delete buttons */}
+                      <div className="flex flex-col gap-1">
+                        <button
+                          onClick={() => openEditModal(event)}
+                          className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-white rounded-lg transition-colors"
+                          title="Edit"
+                        >
+                          <HiOutlinePencil className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteEvent(event)}
+                          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Delete"
+                        >
+                          <HiOutlineTrash className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))
@@ -446,14 +540,18 @@ const Calendar = () => {
         </div>
       </div>
 
-      {/* Add Meeting Modal */}
+      {/* Add/Edit Event Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-4 border-b sticky top-0 bg-white">
-              <h3 className="text-lg font-semibold text-gray-900">Schedule Meeting</h3>
+              <h3 className="text-lg font-semibold text-gray-900">
+                {editingEvent
+                  ? `Edit ${editingEvent.type === 'meeting' ? 'Meeting' : 'Task'}`
+                  : 'Schedule Meeting'}
+              </h3>
               <button
-                onClick={() => setShowModal(false)}
+                onClick={() => { setShowModal(false); resetForm() }}
                 className="p-1 hover:bg-gray-100 rounded"
               >
                 <HiOutlineX className="w-5 h-5 text-gray-500" />
@@ -463,7 +561,7 @@ const Calendar = () => {
             <form onSubmit={handleSubmit} className="p-4 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Meeting Title *
+                  {editingEvent?.type === 'task' ? 'Task Title *' : 'Meeting Title *'}
                 </label>
                 <input
                   type="text"
@@ -476,10 +574,10 @@ const Calendar = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Date & Time *
+                  {editingEvent?.type === 'task' ? 'Due Date *' : 'Date & Time *'}
                 </label>
                 <input
-                  type="datetime-local"
+                  type={editingEvent?.type === 'task' ? 'date' : 'datetime-local'}
                   value={formData.datetime}
                   onChange={(e) => setFormData({ ...formData, datetime: e.target.value })}
                   className="input-field"
@@ -489,7 +587,7 @@ const Calendar = () => {
 
               <div className="relative">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Description (use @mention to add attendees)
+                  Description {editingEvent?.type !== 'task' && '(use @mention to add attendees)'}
                 </label>
                 <textarea
                   ref={descriptionRef}
@@ -497,7 +595,7 @@ const Calendar = () => {
                   onChange={handleDescriptionChange}
                   className="input-field"
                   rows={3}
-                  placeholder="Type @ to mention team members..."
+                  placeholder={editingEvent?.type === 'task' ? 'Task description...' : 'Type @ to mention team members...'}
                 />
 
                 {/* Mention Dropdown */}
@@ -525,8 +623,8 @@ const Calendar = () => {
                 )}
               </div>
 
-              {/* Selected Attendees */}
-              {formData.attendees.length > 0 && (
+              {/* Selected Attendees (only for meetings) */}
+              {(!editingEvent || editingEvent.type === 'meeting') && formData.attendees.length > 0 && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Attendees
@@ -554,29 +652,32 @@ const Calendar = () => {
                 </div>
               )}
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Meeting Link (optional)
-                </label>
-                <input
-                  type="url"
-                  value={formData.meet_link}
-                  onChange={(e) => setFormData({ ...formData, meet_link: e.target.value })}
-                  className="input-field"
-                  placeholder="https://meet.google.com/..."
-                />
-              </div>
+              {/* Meeting link (only for meetings) */}
+              {(!editingEvent || editingEvent.type === 'meeting') && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Meeting Link (optional)
+                  </label>
+                  <input
+                    type="url"
+                    value={formData.meet_link}
+                    onChange={(e) => setFormData({ ...formData, meet_link: e.target.value })}
+                    className="input-field"
+                    placeholder="https://meet.google.com/..."
+                  />
+                </div>
+              )}
 
               <div className="flex gap-3 pt-4">
                 <button
                   type="button"
-                  onClick={() => setShowModal(false)}
+                  onClick={() => { setShowModal(false); resetForm() }}
                   className="btn-secondary flex-1"
                 >
                   Cancel
                 </button>
                 <button type="submit" className="btn-primary flex-1">
-                  Schedule Meeting
+                  {editingEvent ? 'Update' : 'Schedule Meeting'}
                 </button>
               </div>
             </form>
